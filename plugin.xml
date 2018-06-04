@@ -24,7 +24,7 @@
         </config-file>
 
         <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="Stripe Google Apple Pay">
+            <feature name="StripeGoogleApplePay">
                 <param name="android-package" value="stripegoogleapplepay.StripeGoogleApplePay" />
                 <param name="onload" value="true" />
             </feature>
@@ -33,7 +33,7 @@
         <framework src="com.stripe:stripe-android:6.1.2" />
         <framework src="com.google.android.gms:play-services-wallet:15.0.1" />
         <framework src="com.android.support:support-v4:27.0.2" />
-        <framework src="com.android.support:appcompat-v7:27.1.1" />
+        <framework src="com.android.support:appcompat-v7:26.0.1" />
     </platform>
 <!--<platform name="ios">
         <config-file target="config.xml" parent="/*">

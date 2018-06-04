@@ -20,6 +20,19 @@ com.android.support:appcompat-v7:27.1.1
 cordova plugin add cordova-plugin-stripe-google-apple-pay
 ```
 
+## Usage
+
+This plugin puts the functions into `window.sgap`.
+All functions return a promise.
+
+```
+sgap.isReadyToPay()
+```
+
+ - Used to test if the appropriate payment method is available on the current device.
+ - Resolves if successful, rejects if not, or if it encounters an error.
+
+
 ## Contributing
 
 PRs welcome!

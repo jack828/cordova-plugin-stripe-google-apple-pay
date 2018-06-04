@@ -1,7 +1,7 @@
 var SGAP = {
-  someFunction: function (args) {
+  isReadyToPay: function () {
     return new Promise(function (resolve, reject) {
-      cordova.exec(resolve, reject, 'stripe-google-apple-pay', 'test_function', [ 'Context?', ...args ])
+      cordova.exec(resolve, reject, 'StripeGoogleApplePay', 'is_ready_to_pay', [])
     })
   }
 }
