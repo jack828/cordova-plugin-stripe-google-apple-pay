@@ -1,16 +1,30 @@
-package StripeGoogleApplePay;
+package stripegoogleapplepay;
 
 import org.apache.cordova.*;
 import com.stripe.android.*;
+import com.google.android.gms.wallet.PaymentsClient;
+import com.google.android.gms.wallet.WalletConstants;
+import com.google.android.gms.wallet.Wallet;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import android.content.Context;
 
 public class StripeGoogleApplePay extends CordovaPlugin {
   private static final String TEST_ACTION = "test_action";
 
+  private PaymentsClient paymentsClient;
+
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     super.initialize(cordova, webView);
-    this.paymentsClient =
-      Wallet.getPaymentsClient(this, new Wallet.WalletOptions.Builder().setEnvironment(WalletConstants.ENVIRONMENT_TEST).build());
+    Context context = this.cordova.getActivity().getApplicationContext();
+    this.paymentsClient = Wallet.getPaymentsClient(
+        context,
+        new Wallet.WalletOptions.Builder()
+          .setEnvironment(WalletConstants.ENVIRONMENT_TEST)
+          .build()
+        );
   }
 
   @Override
