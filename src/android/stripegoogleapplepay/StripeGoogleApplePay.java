@@ -1,15 +1,26 @@
-
 package stripegoogleapplepay;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.identity.intents.model.UserAddress;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.gms.wallet.AutoResolveHelper;
+import com.google.android.gms.wallet.CardInfo;
+import com.google.android.gms.wallet.CardRequirements;
+import com.google.android.gms.wallet.PaymentData;
+import com.google.android.gms.wallet.PaymentDataRequest;
+import com.google.android.gms.wallet.PaymentMethodTokenizationParameters;
 import com.google.android.gms.wallet.PaymentsClient;
+import com.google.android.gms.wallet.TransactionInfo;
 import com.google.android.gms.wallet.Wallet;
 import com.google.android.gms.wallet.WalletConstants;
 import com.google.android.gms.wallet.IsReadyToPayRequest;
+import com.stripe.android.model.Token;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
@@ -19,10 +30,17 @@ import org.apache.cordova.CordovaWebView;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.util.Arrays;
+
 public class StripeGoogleApplePay extends CordovaPlugin {
   private static final String IS_READY_TO_PAY = "is_ready_to_pay";
+  private static final String REQUEST_PAYMENT = "request_payment";
+
+  private static final int LOAD_PAYMENT_DATA_REQUEST_CODE = 42;
 
   private PaymentsClient paymentsClient;
+
+  private CallbackContext callback;
 
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
@@ -38,35 +56,126 @@ public class StripeGoogleApplePay extends CordovaPlugin {
 
   @Override
   public boolean execute(final String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
+    this.callback = callbackContext;
     if (action.equals(IS_READY_TO_PAY)) {
-      this.isReadyToPay(callbackContext);
+      this.isReadyToPay();
+    } else if (action.equals(REQUEST_PAYMENT)) {
+      this.requestPayment(data.getString(0), data.getString(1));
     } else {
       return false;
     }
     return true;
   }
 
-  private void isReadyToPay(CallbackContext callbackContext) {
+  @Override
+  public void onActivityResult(int requestCode, int resultCode, Intent data) {
+    switch (requestCode) {
+      case LOAD_PAYMENT_DATA_REQUEST_CODE:
+        switch (resultCode) {
+          case Activity.RESULT_OK:
+            PaymentData paymentData = PaymentData.getFromIntent(data);
+            // You can get some data on the user's card, such as the brand and last 4 digits
+            CardInfo info = paymentData.getCardInfo();
+            // You can also pull the user address from the PaymentData object.
+            UserAddress address = paymentData.getShippingAddress();
+            // This is the raw JSON string version of your Stripe token.
+            String rawToken = paymentData.getPaymentMethodToken().getToken();
+
+            // Now that you have a Stripe token object, charge that by using the id
+            Token stripeToken = Token.fromString(rawToken);
+            if (stripeToken != null) {
+              // This chargeToken function is a call to your own server, which should then connect
+              // to Stripe's API to finish the charge.
+              //chargeToken(stripeToken.getId());
+              this.callback.success(stripeToken.getId());
+            } else {
+              this.callback.error("An error occurred");
+            }
+            break;
+          case Activity.RESULT_CANCELED:
+            this.callback.error("Payment cancelled");
+            break;
+          case AutoResolveHelper.RESULT_ERROR:
+            Status status = AutoResolveHelper.getStatusFromIntent(data);
+            // Log the status for debugging
+            // Generally there is no need to show an error to
+            // the user as the Google Payment API will do that
+            break;
+          default:
+            // Do nothing.
+        }
+        break; // Breaks the case LOAD_PAYMENT_DATA_REQUEST_CODE
+      // Handle any other startActivityForResult calls you may have made.
+      default:
+        // Do nothing.
+    }
+  }
+
+  private void isReadyToPay() {
     IsReadyToPayRequest request = IsReadyToPayRequest.newBuilder()
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
       .build();
     Task<Boolean> task = paymentsClient.isReadyToPay(request);
+    CallbackContext callbackContext = this.callback;
     task.addOnCompleteListener(
       new OnCompleteListener<Boolean>() {
         public void onComplete(Task<Boolean> task) {
           try {
             boolean result = task.getResult(ApiException.class);
-            if (result) {
-              callbackContext.success();
-            } else {
-              callbackContext.error("Not supported");
-            }
+            if (!result) callbackContext.error("Not supported");
+            else callbackContext.success();
+
           } catch (ApiException exception) {
             callbackContext.error(exception.getMessage());
           }
         }
       });
   }
-}
 
+  private void requestPayment (String totalPrice, String currency) {
+    PaymentDataRequest request = this.createPaymentDataRequest(totalPrice, currency);
+    Activity activity = this.cordova.getActivity();
+    if (request != null) {
+      cordova.setActivityResultCallback(this);
+      AutoResolveHelper.resolveTask(
+          paymentsClient.loadPaymentData(request),
+          activity,
+          LOAD_PAYMENT_DATA_REQUEST_CODE);
+    }
+  }
+
+  private PaymentMethodTokenizationParameters createTokenisationParameters() {
+    return PaymentMethodTokenizationParameters.newBuilder()
+        .setPaymentMethodTokenizationType(WalletConstants.PAYMENT_METHOD_TOKENIZATION_TYPE_PAYMENT_GATEWAY)
+        .addParameter("gateway", "stripe")
+        .addParameter("stripe:publishableKey", "pk_test_6pRNASCoBOKtIshFeQd4XMUh")
+        .addParameter("stripe:version", "5.1.0")
+        .build();
+  }
+
+  // TODO: define transaction data structure
+  private PaymentDataRequest createPaymentDataRequest(String totalPrice, String currency) {
+    PaymentDataRequest.Builder request =
+        PaymentDataRequest.newBuilder()
+            .setTransactionInfo(
+                TransactionInfo.newBuilder()
+                    .setTotalPriceStatus(WalletConstants.TOTAL_PRICE_STATUS_FINAL)
+                    .setTotalPrice(totalPrice)
+                    .setCurrencyCode(currency)
+                    .build())
+            .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
+            .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
+            .setCardRequirements(
+                CardRequirements.newBuilder()
+                    .addAllowedCardNetworks(Arrays.asList(
+                        WalletConstants.CARD_NETWORK_AMEX,
+                        WalletConstants.CARD_NETWORK_DISCOVER,
+                        WalletConstants.CARD_NETWORK_VISA,
+                        WalletConstants.CARD_NETWORK_MASTERCARD))
+                    .build());
+
+    request.setPaymentMethodTokenizationParameters(this.createTokenisationParameters());
+    return request.build();
+  }
+}

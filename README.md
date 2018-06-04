@@ -25,13 +25,22 @@ cordova plugin add cordova-plugin-stripe-google-apple-pay
 This plugin puts the functions into `window.sgap`.
 All functions return a promise.
 
-```
+```javascript
 sgap.isReadyToPay()
 ```
 
  - Used to test if the appropriate payment method is available on the current device.
- - Resolves if successful, rejects if not, or if it encounters an error.
+ - Resolves if appropriate payment method is available
+ - Rejects if not, or if it encounters an error
 
+```javascript
+sgap.requestPayment(totalPrice, currency)
+```
+  - Initiates the payment journey for the user to complete.
+  - `totalPrice` must be a string representation of the total price - e.g. for £10.78, it would be `10.78`
+  - `currency` must be a valid ISO 4217 currency code for the transaction
+  - Resolves when the journey is complete, with the stripe token
+  - Rejects if an error occurs
 
 ## Contributing
 
