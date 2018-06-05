@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-stripe-google-apple-pay",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Cordova plugin for Google and Apple pay",
   "repository": {
     "type": "git",
