@@ -26,9 +26,16 @@ This plugin puts the functions into `window.sgap`.
 All functions return a promise.
 
 ```javascript
+sgap.setKey('pk_test_d34db33f')
+```
+ - Used to set the Stripe publishable key
+ - Required to request payments
+ - If test key is provided, then payments are completed in `ENVIRONMENT_TEST` mode, and `ENVIRONMENT_PRODUCTION` mode if the live key is given
+ - If you attempt any of the below functions without calling this first, they will throw an error
+
+```javascript
 sgap.isReadyToPay()
 ```
-
  - Used to test if the appropriate payment method is available on the current device.
  - Resolves if appropriate payment method is available
  - Rejects if not, or if it encounters an error

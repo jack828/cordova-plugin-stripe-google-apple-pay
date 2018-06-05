@@ -1,7 +1,6 @@
 package stripegoogleapplepay;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 
 import com.google.android.gms.common.api.ApiException;
@@ -20,6 +19,7 @@ import com.google.android.gms.wallet.TransactionInfo;
 import com.google.android.gms.wallet.Wallet;
 import com.google.android.gms.wallet.WalletConstants;
 import com.google.android.gms.wallet.IsReadyToPayRequest;
+
 import com.stripe.android.model.Token;
 
 import org.apache.cordova.CallbackContext;
@@ -33,30 +33,35 @@ import org.json.JSONException;
 import java.util.Arrays;
 
 public class StripeGoogleApplePay extends CordovaPlugin {
+  private static final String SET_KEY = "set_key";
   private static final String IS_READY_TO_PAY = "is_ready_to_pay";
   private static final String REQUEST_PAYMENT = "request_payment";
 
   private static final int LOAD_PAYMENT_DATA_REQUEST_CODE = 42;
 
-  private PaymentsClient paymentsClient;
-
+  private PaymentsClient paymentsClient = null;
   private CallbackContext callback;
+  private int environment;
+  private String stripePublishableKey;
 
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     super.initialize(cordova, webView);
-    Context context = this.cordova.getActivity().getApplicationContext();
-    this.paymentsClient = Wallet.getPaymentsClient(
-        context,
-        new Wallet.WalletOptions.Builder() // TODO: production environment check
-          .setEnvironment(WalletConstants.ENVIRONMENT_TEST)
-          .build()
-        );
   }
 
   @Override
   public boolean execute(final String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
     this.callback = callbackContext;
+
+    if (action.equals(SET_KEY)) {
+      this.setKey(data.getString(0));
+    }
+
+    // These actions require the key to be already set
+    if (!this.isInitialised()) {
+      this.callback.error("SGAP not initialised. Please run sgap.setKey(STRIPE_PUBLISHABLE).");
+    }
+
     if (action.equals(IS_READY_TO_PAY)) {
       this.isReadyToPay();
     } else if (action.equals(REQUEST_PAYMENT)) {
@@ -111,11 +116,35 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     }
   }
 
+  private boolean isInitialised() {
+    return this.paymentsClient == null;
+  }
+
+  private void setKey(String key) {
+    if (key.contains("pk_test")) {
+      this.environment = WalletConstants.ENVIRONMENT_TEST;
+    } else if (key.contains("pk_live")) {
+      this.environment = WalletConstants.ENVIRONMENT_PRODUCTION;
+    } else {
+      this.callback.error("Invalid key");
+      return;
+    }
+    this.stripePublishableKey = key;
+    this.paymentsClient = Wallet.getPaymentsClient(
+        this.cordova.getActivity().getApplicationContext(),
+        new Wallet.WalletOptions.Builder()
+            .setEnvironment(this.environment)
+            .build()
+    );
+    this.callback.success();
+  }
+
   private void isReadyToPay() {
     IsReadyToPayRequest request = IsReadyToPayRequest.newBuilder()
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
       .build();
+
     Task<Boolean> task = paymentsClient.isReadyToPay(request);
     CallbackContext callbackContext = this.callback;
     task.addOnCompleteListener(
@@ -149,12 +178,11 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     return PaymentMethodTokenizationParameters.newBuilder()
         .setPaymentMethodTokenizationType(WalletConstants.PAYMENT_METHOD_TOKENIZATION_TYPE_PAYMENT_GATEWAY)
         .addParameter("gateway", "stripe")
-        .addParameter("stripe:publishableKey", "pk_test_6pRNASCoBOKtIshFeQd4XMUh")
+        .addParameter("stripe:publishableKey", this.stripePublishableKey)
         .addParameter("stripe:version", "5.1.0")
         .build();
   }
 
-  // TODO: define transaction data structure
   private PaymentDataRequest createPaymentDataRequest(String totalPrice, String currency) {
     PaymentDataRequest.Builder request =
         PaymentDataRequest.newBuilder()
