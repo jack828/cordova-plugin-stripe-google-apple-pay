@@ -3,7 +3,7 @@
   xmlns="http://apache.org/cordova/ns/plugins/1.0"
   xmlns:android="http://schemas.android.com/apk/res/android"
   id="cordova-plugin-stripe-google-apple-pay"
-  version="0.0.0"
+  version="0.0.1"
   >
     <name>cordova-plugin-stripe-google-apple-pay</name>
     <description>Cordova plugin for Google and Apple pay integration</description>
