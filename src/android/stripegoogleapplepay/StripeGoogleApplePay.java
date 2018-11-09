@@ -58,7 +58,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     }
 
     // These actions require the key to be already set
-    if (!this.isInitialised()) {
+    if (this.isInitialised()) {
       this.callback.error("SGAP not initialised. Please run sgap.setKey(STRIPE_PUBLISHABLE).");
     }
 
@@ -145,8 +145,8 @@ public class StripeGoogleApplePay extends CordovaPlugin {
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
       .build();
 
-    Task<Boolean> task = paymentsClient.isReadyToPay(request);
-    CallbackContext callbackContext = this.callback;
+    Task<Boolean> task = this.paymentsClient.isReadyToPay(request);
+    final CallbackContext callbackContext = this.callback;
     task.addOnCompleteListener(
       new OnCompleteListener<Boolean>() {
         public void onComplete(Task<Boolean> task) {
@@ -168,7 +168,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     if (request != null) {
       cordova.setActivityResultCallback(this);
       AutoResolveHelper.resolveTask(
-          paymentsClient.loadPaymentData(request),
+          this.paymentsClient.loadPaymentData(request),
           activity,
           LOAD_PAYMENT_DATA_REQUEST_CODE);
     }
